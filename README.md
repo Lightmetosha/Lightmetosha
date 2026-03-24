@@ -1,16 +1,31 @@
-## Hi there 👋
+# Hi, I'm Anton 👋
 
-<!--
-**Lightmetosha/Lightmetosha** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+DevOps Engineer focused on Linux, Docker, CI/CD, Jenkins, GitHub Actions, and web deployment.
 
-Here are some ideas to get you started:
+## Featured Project
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+### DevOps Flask App
+Production-like deployment project with:
+
+- Flask web application
+- Docker containerization
+- Jenkins Pipeline as Code
+- GitHub Actions CI/CD
+- Nginx reverse proxy
+- HTTPS with Let's Encrypt
+- VPS deployment
+
+🔗 Live demo: https://lightmeserv.ru  
+🔗 Repository: https://github.com/Lightmetosha/devops-flask-app
+
+## Skills
+
+- Linux
+- Docker
+- Jenkins
+- GitHub Actions
+- Git / GitHub
+- Nginx
+- HTTPS / Certbot
+- SSH
+- Python / Flask
