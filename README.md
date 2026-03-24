@@ -1,6 +1,5 @@
 # Hi, I'm Anton 👋
 ![Profile views](https://komarev.com/ghpvc/?username=Lightmetosha&color=blue)
-![GitHub stats](https://github-readme-stats.vercel.app/api?username=Lightmetosha&show_icons=true&theme=dark)\
 
 DevOps Engineer focused on Linux, Docker, CI/CD, Jenkins, GitHub Actions, and web deployment.
 
