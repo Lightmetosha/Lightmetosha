@@ -1,4 +1,4 @@
-name: Build Monitoring center APK
+name: Build Monitoring center Mobile v18
 
 on:
   push:
@@ -34,18 +34,24 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Unpack project
+      - name: Unpack v18 project
         run: |
-          unzip -q MonitoringCenterMobile_android_source.zip
-          ls -la MonitoringCenterMobile
+          unzip -q MonitoringCenterMobile_v18_android_source.zip
+          grep -q "СОБЫТИЯ" MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MainActivity.java
+          grep -q "СКАНИРОВАТЬ QR" MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MainActivity.java
 
       - name: Build debug APK
         working-directory: MonitoringCenterMobile
         run: gradle --no-daemon assembleDebug
 
+      - name: Verify APK changed
+        run: |
+          ls -lh MonitoringCenterMobile/app/build/outputs/apk/debug/app-debug.apk
+          unzip -l MonitoringCenterMobile/app/build/outputs/apk/debug/app-debug.apk | head
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Monitoring-center-Mobile
+          name: Monitoring-center-Mobile-v18-real
           path: MonitoringCenterMobile/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
