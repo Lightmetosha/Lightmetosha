@@ -14,7 +14,7 @@ import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 import org.json.*;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity {\n    private static final int REQ_QR=7001;
     private final int BG=Color.rgb(9,11,18), CARD=Color.rgb(20,24,36), TEXT=Color.rgb(245,247,255), MUTED=Color.rgb(143,152,172), ACCENT=Color.rgb(124,92,255), ACCENT2=Color.rgb(49,215,255), GOOD=Color.rgb(55,214,122), BAD=Color.rgb(255,73,106), WARN=Color.rgb(255,184,77);
     private SharedPreferences prefs;
     private EditText base, token;
