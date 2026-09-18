@@ -1,4 +1,4 @@
-name: Build Monitoring center Mobile v18
+name: Build real Monitoring center Mobile v18
 
 on:
   push:
@@ -34,20 +34,20 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Unpack v18 project
+      - name: Prepare v18 sources
         run: |
-          unzip -q MonitoringCenterMobile_v18_android_source.zip
+          unzip -q MonitoringCenterMobile_android_source.zip
+          cp patch/MainActivity.java MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MainActivity.java
+          cp patch/MonitorService.java MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MonitorService.java
+          cp patch/AndroidManifest.xml MonitoringCenterMobile/app/src/main/AndroidManifest.xml
+          cp patch/app-build.gradle MonitoringCenterMobile/app/build.gradle
           grep -q "СОБЫТИЯ" MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MainActivity.java
           grep -q "СКАНИРОВАТЬ QR" MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MainActivity.java
+          grep -q "start_all" MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MainActivity.java
 
       - name: Build debug APK
         working-directory: MonitoringCenterMobile
         run: gradle --no-daemon assembleDebug
-
-      - name: Verify APK changed
-        run: |
-          ls -lh MonitoringCenterMobile/app/build/outputs/apk/debug/app-debug.apk
-          unzip -l MonitoringCenterMobile/app/build/outputs/apk/debug/app-debug.apk | head
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
