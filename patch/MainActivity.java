@@ -83,18 +83,22 @@ public class MainActivity extends Activity {
     }
 
     private void scanQr(){
-        IntentIntegrator ii=new IntentIntegrator(this);
-        ii.setPrompt("Наведи камеру на QR-код в Monitoring center на ПК");
-        ii.setBeepEnabled(false);
-        ii.setOrientationLocked(true);
-        ii.initiateScan();
+        try{
+            Intent i=new Intent(this,QrScanActivity.class);
+            startActivityForResult(i,REQ_QR);
+        }catch(Exception e){
+            Toast.makeText(this,"Не удалось открыть камеру: "+e.getClass().getSimpleName(),Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
-        IntentResult r=IntentIntegrator.parseActivityResult(requestCode,resultCode,data);
-        if(r!=null){
-            if(r.getContents()!=null){applyConnectionString(r.getContents()); connect();}
-            else Toast.makeText(this,"Сканирование отменено",Toast.LENGTH_SHORT).show();
+        if(requestCode==REQ_QR){
+            if(resultCode==RESULT_OK && data!=null){
+                String raw=data.getStringExtra("qr");
+                if(raw!=null && !raw.trim().isEmpty()){applyConnectionString(raw);connect();}
+            }else{
+                Toast.makeText(this,"Сканирование отменено",Toast.LENGTH_SHORT).show();
+            }
             return;
         }
         super.onActivityResult(requestCode,resultCode,data);

@@ -1,4 +1,4 @@
-name: Build real Monitoring center Mobile v18
+name: Build Monitoring center Mobile QR fix
 
 on:
   push:
@@ -12,46 +12,33 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Install Android SDK packages
         shell: bash
         run: |
           SDKMANAGER=/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager
-          test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
-      - name: Prepare v18 sources
+      - name: Prepare sources
         run: |
           unzip -q MonitoringCenterMobile_android_source.zip
           cp patch/MainActivity.java MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MainActivity.java
           cp patch/MonitorService.java MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MonitorService.java
+          cp patch/QrScanActivity.java MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/QrScanActivity.java
           cp patch/AndroidManifest.xml MonitoringCenterMobile/app/src/main/AndroidManifest.xml
           cp patch/app-build.gradle MonitoringCenterMobile/app/build.gradle
-          grep -q "СОБЫТИЯ" MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MainActivity.java
-          grep -q "СКАНИРОВАТЬ QR" MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MainActivity.java
-          grep -q "start_all" MonitoringCenterMobile/app/src/main/java/com/monitoringcenter/mobile/MainActivity.java
-
-      - name: Build debug APK
+      - name: Build
         working-directory: MonitoringCenterMobile
         run: gradle --no-daemon assembleDebug
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Monitoring-center-Mobile-v18-real
+          name: Monitoring-center-Mobile-v18-qrfix
           path: MonitoringCenterMobile/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
