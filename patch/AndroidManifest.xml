@@ -11,6 +11,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".QrScanActivity" android:screenOrientation="portrait" android:exported="false"/>\n        <service android:name=".MonitorService" android:foregroundServiceType="dataSync" android:exported="false"/>
+        <activity android:name=".QrScanActivity" android:screenOrientation="portrait" android:exported="false"/>
+        <service android:name=".MonitorService" android:foregroundServiceType="dataSync" android:exported="false"/>
     </application>
 </manifest>

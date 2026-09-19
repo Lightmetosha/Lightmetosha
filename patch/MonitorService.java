@@ -14,6 +14,7 @@ public class MonitorService extends Service {
     public static final String ACTION_START = "mc.START";
     public static final String ACTION_SILENCE = "mc.SILENCE";
     public static final String ACTION_REMOTE = "mc.REMOTE";
+    public static final String ACTION_DISCONNECT = "mc.DISCONNECT";
     public static final String EXTRA_ACTION = "remote_action";
     public static final String EXTRA_ID = "remote_id";
     private static final String CH_STATUS = "monitor_status";
@@ -21,14 +22,21 @@ public class MonitorService extends Service {
     private ScheduledExecutorService executor;
     private SharedPreferences prefs;
     private int failures = 0;
+    private static final int FAIL_THRESHOLD = 5;
 
     @Override public void onCreate() {
         super.onCreate(); prefs=getSharedPreferences("mc",MODE_PRIVATE); createChannels(); startForeground(100,statusNotification("Подключение к ПК…",false));
     }
 
     @Override public int onStartCommand(Intent intent,int flags,int startId) {
-        ensureExecutor();
         String action=intent==null?ACTION_START:intent.getAction();
+        if(ACTION_DISCONNECT.equals(action)){
+            prefs.edit().putBoolean("manual_disconnected",true).putLong("last_ok",0).putString("last_error","").apply();
+            if(executor!=null){executor.shutdownNow();executor=null;}
+            stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return START_NOT_STICKY;
+        }
+        prefs.edit().putBoolean("manual_disconnected",false).apply();
+        ensureExecutor();
         if(ACTION_SILENCE.equals(action)){executor.execute(()->{postSilence();pollOnce();});return START_STICKY;}
         if(ACTION_REMOTE.equals(action)){
             String ra=intent.getStringExtra(EXTRA_ACTION), id=intent.getStringExtra(EXTRA_ID);
@@ -53,7 +61,7 @@ public class MonitorService extends Service {
             int code=c.getResponseCode();if(code!=200)throw new IOException("HTTP "+code);String json=readAll(c.getInputStream());JSONObject root=new JSONObject(json);
             failures=0;prefs.edit().putString("last_state",json).putLong("last_ok",System.currentTimeMillis()).putString("last_error","").apply();handleEvents(root.optJSONArray("events"));
             boolean alarm=root.optBoolean("alarm_active",false);String pc=root.optString("pc_name","ПК");updateStatus((alarm?"ТРЕВОГА · ":"Подключено · ")+pc,alarm);
-        }catch(Exception e){failures++;prefs.edit().putString("last_error",e.getMessage()==null?e.toString():e.getMessage()).apply();updateStatus("Нет связи с ПК"+(failures>1?" · "+failures:""),false);if(failures==3)notifyConnectionLost();}
+        }catch(Exception e){failures++;prefs.edit().putString("last_error",e.getMessage()==null?e.toString():e.getMessage()).apply();if(failures==FAIL_THRESHOLD){updateStatus("Нет связи с ПК · "+failures+" попыток",false);notifyConnectionLost();}else if(failures>FAIL_THRESHOLD){updateStatus("Нет связи с ПК · "+failures+" попыток",false);}}
         finally{if(c!=null)c.disconnect();}
     }
 
@@ -70,7 +78,7 @@ public class MonitorService extends Service {
         Notification n=new Notification.Builder(this,CH_ALERT).setSmallIcon(R.drawable.ic_monitor).setContentTitle("ТРЕВОГА — "+source).setContentText(text).setStyle(new Notification.BigTextStyle().bigText(text)).setContentIntent(pi).setAutoCancel(true).setPriority(Notification.PRIORITY_MAX).addAction(new Notification.Action.Builder(null,"ВЫКЛЮЧИТЬ ТРЕВОГУ",spi).build()).build();
         ((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).notify((int)(System.nanoTime()&0x7fffffff),n);
     }
-    private void notifyConnectionLost(){Notification n=new Notification.Builder(this,CH_ALERT).setSmallIcon(R.drawable.ic_monitor).setContentTitle("Monitoring center — потеря связи").setContentText("Телефон не может подключиться к ПК. Проверь Wi‑Fi и Monitoring center.").setPriority(Notification.PRIORITY_HIGH).build();((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).notify(901,n);}
+    private void notifyConnectionLost(){Notification n=new Notification.Builder(this,CH_ALERT).setSmallIcon(R.drawable.ic_monitor).setContentTitle("Monitoring center — потеря связи").setContentText("Не удалось связаться с ПК после "+FAIL_THRESHOLD+" попыток. Проверь Wi‑Fi и Monitoring center.").setPriority(Notification.PRIORITY_HIGH).build();((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).notify(901,n);}
 
     private void postSilence(){postSimple("/api/v1/silence",null);}
     private void postAction(String action,String id){

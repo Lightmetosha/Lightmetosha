@@ -10,8 +10,6 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.*;
 import android.view.*;
 import android.widget.*;
-import com.google.zxing.integration.android.IntentIntegrator;
-import com.google.zxing.integration.android.IntentResult;
 import org.json.*;
 
 public class MainActivity extends Activity {
@@ -23,8 +21,6 @@ public class MainActivity extends Activity {
     private LinearLayout monitors, events, summaryPage, eventsPage;
     private Button tabSummary, tabEvents;
     private Handler handler=new Handler(Looper.getMainLooper());
-    private final String[] ids={"grafana","tg1","tg2","tg3","mm1","mm2"};
-    private final String[] names={"Grafana","Telegram 1","Telegram 2","Telegram 3","Mattermost 1","Mattermost 2"};
     private Runnable refreshTask=new Runnable(){public void run(){renderState();handler.postDelayed(this,1000);}};
 
     @Override public void onCreate(Bundle b){
@@ -59,6 +55,7 @@ public class MainActivity extends Activity {
         LinearLayout pairButtons=new LinearLayout(this); pairButtons.setOrientation(LinearLayout.HORIZONTAL);
         Button qr=button("СКАНИРОВАТЬ QR",Color.rgb(35,40,55)); qr.setOnClickListener(v->scanQr()); pairButtons.addView(qr,new LinearLayout.LayoutParams(0,dp(46),1));
         Button connect=button("ПОДКЛЮЧИТЬ",ACCENT); connect.setOnClickListener(v->connect()); LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(46),1); cp.setMargins(dp(8),0,0,0); pairButtons.addView(connect,cp); setup.addView(pairButtons);
+        Button disconnect=button("ОТКЛЮЧИТЬСЯ ОТ ПК",Color.rgb(35,40,55)); disconnect.setOnClickListener(v->disconnect()); LinearLayout.LayoutParams dpb=new LinearLayout.LayoutParams(-1,dp(44)); dpb.setMargins(0,dp(8),0,0); setup.addView(disconnect,dpb);
         conn=txt("Не подключено",12,MUTED,false); conn.setPadding(0,dp(12),0,0); setup.addView(conn);
 
         LinearLayout global=card(); summaryPage.addView(global); global.addView(txt("Управление",15,TEXT,true));
@@ -120,8 +117,15 @@ public class MainActivity extends Activity {
         String b=base.getText().toString().trim(); String t=token.getText().toString().trim();
         if(b.contains("|")){String[] parts=b.split("\\|",2);b=parts[0].trim();if(t.isEmpty()&&parts.length>1)t=parts[1].trim();}
         if(!b.startsWith("http://")&&!b.startsWith("https://"))b="http://"+b; while(b.endsWith("/"))b=b.substring(0,b.length()-1);
-        prefs.edit().putString("base",b).putString("token",t).putString("last_event_key","").apply(); base.setText(b); token.setText(t);
+        prefs.edit().putString("base",b).putString("token",t).putString("last_event_key","").putBoolean("manual_disconnected",false).apply(); base.setText(b); token.setText(t);
         Intent i=new Intent(this,MonitorService.class).setAction(MonitorService.ACTION_START); startSvc(i); Toast.makeText(this,"Подключение запущено",Toast.LENGTH_SHORT).show();
+    }
+    private void disconnect(){
+        prefs.edit().putBoolean("manual_disconnected",true).putLong("last_ok",0).putString("last_error","").apply();
+        Intent i=new Intent(this,MonitorService.class).setAction(MonitorService.ACTION_DISCONNECT);
+        if(Build.VERSION.SDK_INT>=26)startForegroundService(i);else startService(i);
+        conn.setText("Отключено от ПК"); conn.setTextColor(MUTED);
+        Toast.makeText(this,"Соединение с ПК остановлено",Toast.LENGTH_SHORT).show();
     }
     private void silence(){ Intent i=new Intent(this,MonitorService.class).setAction(MonitorService.ACTION_SILENCE); startSvc(i); Toast.makeText(this,"Команда отправлена",Toast.LENGTH_SHORT).show(); }
     private void remoteAction(String action,String id){
@@ -131,16 +135,25 @@ public class MainActivity extends Activity {
     private void startSvc(Intent i){if(Build.VERSION.SDK_INT>=26)startForegroundService(i);else startService(i);}
 
     private void renderState(){
+        boolean manual=prefs.getBoolean("manual_disconnected",false);
         long ok=prefs.getLong("last_ok",0); String js=prefs.getString("last_state",""); String err=prefs.getString("last_error","");
-        if(ok>0){long age=(System.currentTimeMillis()-ok)/1000; conn.setText(age<8?"● ПК подключён · обновлено "+age+" сек назад":"● Нет свежих данных · "+age+" сек");conn.setTextColor(age<8?GOOD:BAD);} else {conn.setText(err.isEmpty()?"Не подключено":"Ошибка: "+err);conn.setTextColor(MUTED);}
-        if(js.isEmpty())return; try{JSONObject r=new JSONObject(js); renderMonitors(r.optJSONObject("states")); renderEvents(r.optJSONArray("events"));}catch(Exception ignored){}
+        if(manual){conn.setText("Отключено от ПК");conn.setTextColor(MUTED);}
+        else if(ok>0){long age=(System.currentTimeMillis()-ok)/1000; conn.setText(age<8?"● ПК подключён · обновлено "+age+" сек назад":"● Нет свежих данных · "+age+" сек");conn.setTextColor(age<8?GOOD:BAD);}
+        else {conn.setText(err.isEmpty()?"Не подключено":"Ошибка: "+err);conn.setTextColor(MUTED);}
+        if(js.isEmpty())return; try{JSONObject r=new JSONObject(js); renderMonitors(r); renderEvents(r.optJSONArray("events"));}catch(Exception ignored){}
     }
-    private void renderMonitors(JSONObject states)throws JSONException{
-        monitors.removeAllViews(); if(states==null)return;
-        for(int i=0;i<ids.length;i++){
-            final String id=ids[i]; JSONObject s=states.optJSONObject(id); if(s==null)s=new JSONObject(); boolean al=s.optBoolean("alert"),ready=s.optBoolean("ready"),running=s.optBoolean("running");
+    private void renderMonitors(JSONObject root)throws JSONException{
+        monitors.removeAllViews();
+        JSONObject states=root.optJSONObject("states"); if(states==null)return;
+        JSONArray defs=root.optJSONArray("monitors");
+        if(defs==null){defs=new JSONArray(); JSONObject labels=root.optJSONObject("labels"); Iterator<String> it=states.keys(); while(it.hasNext()){String id=it.next();JSONObject d=new JSONObject();d.put("id",id);d.put("label",labels==null?id:labels.optString(id,id));defs.put(d);}}
+        for(int i=0;i<defs.length();i++){
+            JSONObject d=defs.optJSONObject(i); if(d==null)continue;
+            final String id=d.optString("id",""); if(id.isEmpty())continue;
+            String name=d.optString("label",id);
+            JSONObject s=states.optJSONObject(id); if(s==null)s=new JSONObject(); boolean al=s.optBoolean("alert"),ready=s.optBoolean("ready"),running=s.optBoolean("running");
             LinearLayout c=card(); c.setBackground(round(al?Color.rgb(50,17,28):CARD,16,al?BAD:Color.rgb(43,48,65)));
-            LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);TextView n=txt(names[i],14,TEXT,true);head.addView(n,new LinearLayout.LayoutParams(0,-2,1));
+            LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);TextView n=txt(name,14,TEXT,true);head.addView(n,new LinearLayout.LayoutParams(0,-2,1));
             TextView pill=txt(al?"ТРЕВОГА":ready?"ГОТОВ":running?"ЗАПУСК":"СТОП",11,al?Color.rgb(255,190,204):ready?GOOD:running?WARN:MUTED,true);head.addView(pill);c.addView(head);
             TextView st=txt(s.optString("status",""),12,MUTED,false);st.setPadding(0,dp(10),0,0);c.addView(st);
             String le=s.optString("last_event","");if(!le.isEmpty()){TextView e=txt(s.optString("last_event_at","")+" · "+le,11,TEXT,false);e.setPadding(0,dp(8),0,0);c.addView(e);}
