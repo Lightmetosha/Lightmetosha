@@ -11,6 +11,7 @@ import android.os.*;
 import android.view.*;
 import android.widget.*;
 import org.json.*;
+import java.util.Iterator;
 
 public class MainActivity extends Activity {
     private static final int REQ_QR=7001;
