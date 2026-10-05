@@ -6,6 +6,9 @@ on:
     paths:
       - .github/workflows/fittrack-v18-apk.yml
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,6 +18,19 @@ jobs:
         with:
           ref: fittrack-v17-build
           fetch-depth: 0
+
+      - name: Record run id
+        shell: bash
+        run: |
+          git fetch origin fittrack-v18-build:refs/remotes/origin/fittrack-v18-build
+          git worktree add /tmp/fittrack-v18 refs/remotes/origin/fittrack-v18-build
+          cd /tmp/fittrack-v18
+          echo "$GITHUB_RUN_ID" > fittrack-v18-fixes/run-id.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fittrack-v18-fixes/run-id.txt
+          git commit -m "Record FitTrack v18 build run" || true
+          git push origin HEAD:fittrack-v18-build
 
       - name: Reconstruct v17 source
         shell: bash
