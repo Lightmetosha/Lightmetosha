@@ -1,0 +1,202 @@
+; buildConfig = true }
+    packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+}
+
+dependencies {
+    implementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    implementation("androidx.activity:activity-compose:1.10.0")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.health.connect:connect-client:1.1.0")
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+}
+@@END
+@@FILE app/src/main/AndroidManifest.xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
+    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
+        <queries>
+        <package android:name="com.huawei.health" />
+        <package android:name="nl.appyhapps.healthsync" />
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+    <application android:theme="@style/Theme.FitTrack" android:label="FitTrack" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:fullBackupContent="@xml/backup_rules" android:dataExtractionRules="@xml/data_extraction_rules">
+        <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />
+
+        <activity android:name=".PermissionsRationaleActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+        <activity-alias
+            android:name=".ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".PermissionsRationaleActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+@@END
+@@FILE app/src/main/java/com/lightme/fittrack/HealthStepsManager.kt
+package com.lightme.fittrack
+
+import android.content.Context
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
+import androidx.health.connect.client.records.DistanceRecord
+import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.metadata.Device
+import androidx.health.connect.client.request.AggregateRequest
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
+
+private const val HEALTH_SYNC_PACKAGE = "nl.appyhapps.healthsync"
+
+data class StepDay(
+    val date: LocalDate,
+    val steps: Long = 0,
+    val distanceKm: Double = 0.0,
+    val activeKcal: Double = 0.0,
+    val avgHeartRate: Long? = null,
+    val maxHeartRate: Long? = null,
+    val sleepMinutes: Long = 0
+)
+
+data class HealthDataSource(
+    val packageName: String,
+    val appLabel: String,
+    val devices: Set<String> = emptySet(),
+    val dataTypes: Set<String> = emptySet(),
+    val latest: Instant? = null,
+    val wearableDetected: Boolean = false,
+    val huaweiDetected: Boolean = false,
+    val isHealthSync: Boolean = false,
+    val isPhone: Boolean = false
+) {
+    val title: String
+        get() = when {
+            isHealthSync && huaweiDetected -> "Health Sync · Huawei"
+            isHealthSync -> "Health Sync"
+            isPhone -> "Телефон"
+            else -> appLabel
+        }
+
+    val subtitle: String
+        get() {
+            val deviceText = devices.take(2).joinToString(" · ")
+            val types = dataTypes.joinToString(" · ")
+            return listOf(deviceText, types).filter { it.isNotBlank() }.joinToString("  •  ")
+        }
+}
+
+class HealthStepsManager(private val context: Context) {
+    val stepPermission: String = HealthPermission.getReadPermission(StepsRecord::class)
+    val distancePermission: String = HealthPermission.getReadPermission(DistanceRecord::class)
+    val caloriesPermission: String = HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class)
+    val heartRatePermission: String = HealthPermission.getReadPermission(HeartRateRecord::class)
+    val sleepPermission: String = HealthPermission.getReadPermission(SleepSessionRecord::class)
+    val readPermission: String = stepPermission
+    val readPermissions: Set<String> = setOf(
+        stepPermission, distancePermission, caloriesPermission, heartRatePermission, sleepPermission
+    )
+
+    fun sdkStatus(): Int = HealthConnectClient.getSdkStatus(context)
+    private fun client(): HealthConnectClient = HealthConnectClient.getOrCreate(context)
+
+    suspend fun grantedPermissions(): Set<String> =
+        runCatching { client().permissionController.getGrantedPermissions() }.getOrDefault(emptySet())
+
+    suspend fun hasPermission(): Boolean = grantedPermissions().contains(stepPermission)
+    suspend fun hasAllPermissions(): Boolean = grantedPermissions().containsAll(readPermissions)
+
+    fun isHealthSyncInstalled(): Boolean = isPackageInstalled(HEALTH_SYNC_PACKAGE)
+
+    fun isPackageInstalled(packageName: String): Boolean = runCatching {
+        context.packageManager.getApplicationInfo(packageName, 0)
+    }.isSuccess
+
+    fun appLabel(packageName: String): String {
+        if (packageName == "android" || packageName.startsWith("com.android.healthconnect.phone.")) return "Телефон"
+        if (packageName == HEALTH_SYNC_PACKAGE) return "Health Sync"
+        return runCatching {
+            val pm = context.packageManager
+            pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+        }.getOrDefault(packageName.substringAfterLast('.'))
+    }
+
+    suspend fun readDay(date: LocalDate): StepDay {
+        val zone = ZoneId.systemDefault()
+        val now = Instant.now()
+        val start = date.atStartOfDay(zone).toInstant()
+        val endCandidate = date.plusDays(1).atStartOfDay(zone).toInstant()
+        val end = if (date == LocalDate.now() && now.isBefore(endCandidate)) now else endCandidate
+        val dayFilter = TimeRangeFilter.between(start, end)
+        val granted = grantedPermissions()
+        val hc = client()
+
+        // Health Connect aggregate respects the user's source priority and avoids us manually
+        // summing phone + imported wearable records. This is the value shown by FitTrack.
+        val steps = if (stepPermission in granted) runCatching {
+            hc.aggregate(AggregateRequest(setOf(StepsRecord.COUNT_TOTAL), dayFilter))[StepsRecord.COUNT_TOTAL] ?: 0L
+        }.getOrDefault(0L) else 0L
+
+        val distanceKm = if (distancePermission in granted) runCatching {
+            hc.aggregate(AggregateRequest(setOf(DistanceRecord.DISTANCE_TOTAL), dayFilter))[DistanceRecord.DISTANCE_TOTAL]?.inKilometers ?: 0.0
+        }.getOrDefault(0.0) else 0.0
+
+        val activeKcal = if (caloriesPermission in granted) runCatching {
+            hc.aggregate(AggregateRequest(setOf(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL), dayFilter))[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.inKilocalories ?: 0.0
+        }.getOrDefault(0.0) else 0.0
+
+        val avgHeartRate = if (heartRatePermission in granted) runCatching {
+            hc.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_AVG), dayFilter))[HeartRateRecord.BPM_AVG]
+        }.getOrNull() else null
+
+        val maxHeartRate = if (heartRatePermission in granted) runCatching {
+            hc.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_MAX), dayFilter))[HeartRateRecord.BPM_MAX]
+        }.getOrNull() else null
+
+        val sleepMinutes = if (sleepPermission in granted) runCatching {
+            val sleepStart = date.minusDays(1).atTime(LocalTime.NOON).atZone(zone).toInstant()
+            val sleepEnd = date.atTime(LocalTime.NOON).atZone(zone).toInstant()
+            val sleepFilter = TimeRangeFilter.between(sleepStart, sleepEnd)
+            hc.aggregate(AggregateRequest(setOf(SleepSessionRecord.SLEEP_DURATION_TOTAL), sleepFilter))[SleepSessionRecord.SLEEP_DURATION_TOTAL]?.toMinutes() ?: 0L
+        }.getOrDefault(0L) else 0L
+
+        return StepDay(date, steps, distanceKm, activeKcal, avgHeartRate, maxHeartRate, sleepMinutes)
+    }
+
+    suspend fun readLastDays(days: Int): List<StepDay> {
+        val today = LocalDate.now()
+        return (days - 1 downTo 0).map { offset -> readDay(today.minusDays(offset.toLong())) }
+    }
+
+  
