@@ -19,6 +19,16 @@ jobs:
           ref: fittrack-apk-build
           fetch-depth: 0
 
+      - name: Record workflow run id immediately
+        shell: bash
+        run: |
+          echo "$GITHUB_RUN_ID" > fittrack-build/run-id.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fittrack-build/run-id.txt
+          git commit -m "Record FitTrack APK build run" || true
+          git push origin HEAD:fittrack-apk-build
+
       - name: Reconstruct FitTrack source
         shell: bash
         run: |
@@ -48,13 +58,3 @@ jobs:
           name: FitTrack-v12-debug
           path: fittrack-src/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
-      - name: Record workflow run id
-        shell: bash
-        run: |
-          echo "$GITHUB_RUN_ID" > fittrack-build/run-id.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add fittrack-build/run-id.txt
-          git commit -m "Record FitTrack APK build run" || true
-          git push origin HEAD:fittrack-apk-build
