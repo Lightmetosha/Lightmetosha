@@ -1,5 +1,5 @@
 name: Build FitTrack v17 APK
-# retry after payload verification
+# retry after compile fixes
 on:
   push:
     branches:
