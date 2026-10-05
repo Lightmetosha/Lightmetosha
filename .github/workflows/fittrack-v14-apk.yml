@@ -40,8 +40,8 @@ jobs:
       - name: Apply v14 fixes
         shell: bash
         run: |
-          cat fittrack-build/v14_patch_cloud_p1.b64 fittrack-build/v14_patch_cloud_p2.b64 | base64 -d | gzip -d > fittrack-src/app/src/main/java/com/lightme/fittrack/data/CloudApi.kt
-          base64 -d fittrack-build/v14_patch_profile.b64 | gzip -d > fittrack-src/app/src/main/java/com/lightme/fittrack/ProfileBackupUi.kt
+          cat fittrack-build/v14_cloud_c0* | base64 -d | gzip -d > fittrack-src/app/src/main/java/com/lightme/fittrack/data/CloudApi.kt
+          cat fittrack-build/v14_profile_p0* | base64 -d | gzip -d > fittrack-src/app/src/main/java/com/lightme/fittrack/ProfileBackupUi.kt
           base64 -d fittrack-build/v14_patch_food.b64 | gzip -d > fittrack-src/app/src/main/java/com/lightme/fittrack/data/FoodCatalogApi.kt
           base64 -d fittrack-build/v14_patch_gradle.b64 | gzip -d > fittrack-src/app/build.gradle.kts
           base64 -d fittrack-build/v14_patch_main_diff.b64 | gzip -d > /tmp/main_v14.diff
