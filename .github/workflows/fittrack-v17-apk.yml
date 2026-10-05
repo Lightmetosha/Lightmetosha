@@ -1,52 +1,43 @@
-name: FitTrack v17 APK Build
+name: Build FitTrack v17 APK
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - .github/workflows/fittrack-v17-apk.yml
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout v16 build payload
+      - name: Checkout v17 payload
         uses: actions/checkout@v4
         with:
-          ref: fittrack-apk-build
+          ref: fittrack-v17-build
           fetch-depth: 0
 
-      - name: Reconstruct v16 source
+      - name: Record run id
         shell: bash
         run: |
-          cat fittrack-v16/chunk_* | base64 -d > /tmp/FitTrack-v16-source.zip
-          mkdir -p fittrack-src
-          if ! unzip -t /tmp/FitTrack-v16-source.zip >/dev/null 2>&1; then
-            echo "Repairing archived v16 payload..."
-            zip -FF /tmp/FitTrack-v16-source.zip --out /tmp/FitTrack-v16-fixed.zip >/tmp/zipfix.log 2>&1 || true
-            cat /tmp/zipfix.log
-            cp /tmp/FitTrack-v16-fixed.zip /tmp/FitTrack-v16-source.zip
-          fi
-          unzip -q -o /tmp/FitTrack-v16-source.zip -d fittrack-src
-          test -f fittrack-src/settings.gradle.kts
-          test -f fittrack-src/app/src/main/java/com/lightme/fittrack/MainActivity.kt
+          echo "$GITHUB_RUN_ID" > fittrack-v17-payload/run-id-v17.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fittrack-v17-payload/run-id-v17.txt
+          git commit -m "Record FitTrack v17 build run" || true
+          git push origin HEAD:fittrack-v17-build
 
-      - name: Fetch v17 patches
+      - name: Reconstruct FitTrack v17 source
         shell: bash
         run: |
-          git fetch origin fittrack-v17-build:refs/remotes/origin/fittrack-v17-build
-          git show origin/fittrack-v17-build:fittrack-v17/patch_health.b64 | base64 -d | gzip -d > fittrack-src/app/src/main/java/com/lightme/fittrack/HealthStepsManager.kt
-          git show origin/fittrack-v17-build:fittrack-v17/patch_main.b64 | base64 -d | gzip -d > /tmp/main.diff
-          git show origin/fittrack-v17-build:fittrack-v17/patch_gradle.b64 | base64 -d | gzip -d > /tmp/gradle.diff
-          git show origin/fittrack-v17-build:fittrack-v17/patch_manifest.b64 | base64 -d | gzip -d > /tmp/manifest.diff
-          git show origin/fittrack-v17-build:fittrack-v17/patch_readme.b64 | base64 -d | gzip -d > fittrack-src/README-v17.md
-          (cd fittrack-src && patch --batch -p4 < /tmp/main.diff)
-          (cd fittrack-src && patch --batch -p4 < /tmp/gradle.diff)
-          (cd fittrack-src && patch --batch -p4 < /tmp/manifest.diff)
-          rm -f fittrack-src/app/src/main/java/com/lightme/fittrack/HuaweiHealthManager.kt
-          rm -f fittrack-src/README-v16.md
-          grep -q 'versionCode = 17' fittrack-src/app/build.gradle.kts
-          grep -q 'nl.appyhapps.healthsync' fittrack-src/app/src/main/AndroidManifest.xml
-          grep -q 'HealthSourcesDialog' fittrack-src/app/src/main/java/com/lightme/fittrack/MainActivity.kt
+          cat fittrack-v17-payload/chunk_* | base64 -d > /tmp/FitTrack-v17-source.zip
+          mkdir -p fittrack-src
+          unzip -t /tmp/FitTrack-v17-source.zip
+          unzip -q /tmp/FitTrack-v17-source.zip -d fittrack-src
+          test -f fittrack-src/settings.gradle.kts
+          test -f fittrack-src/app/build.gradle.kts
 
       - name: Install Android API 36
         shell: bash
@@ -63,21 +54,13 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      - name: Build APK
+      - name: Build debug APK
         working-directory: fittrack-src
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
-      - name: Pack v17 source
-        shell: bash
-        run: |
-          cd fittrack-src
-          zip -qr ../FitTrack-v17-source.zip .
-
-      - name: Upload artifacts
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FitTrack-v17
-          path: |
-            fittrack-src/app/build/outputs/apk/debug/app-debug.apk
-            FitTrack-v17-source.zip
+          name: FitTrack-v17-debug
+          path: fittrack-src/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
