@@ -42,6 +42,7 @@ jobs:
         run: |
           sed -i 's/version "8.7.3"/version "8.9.1"/g' fittrack-src/build.gradle.kts
           sed -i 's/compileSdk = 35/compileSdk = 36/g' fittrack-src/app/build.gradle.kts
+          sed -i '/compileSdk = 36/a\    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }' fittrack-src/app/build.gradle.kts
           yes | sdkmanager "platforms;android-36" >/dev/null || true
 
       - name: Enable AndroidX
