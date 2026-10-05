@@ -20,7 +20,13 @@ jobs:
         run: |
           cat fittrack-v16/chunk_* | base64 -d > /tmp/FitTrack-v16-source.zip
           mkdir -p fittrack-src
-          unzip -q /tmp/FitTrack-v16-source.zip -d fittrack-src
+          if ! unzip -t /tmp/FitTrack-v16-source.zip >/dev/null 2>&1; then
+            echo "Repairing archived v16 payload..."
+            zip -FF /tmp/FitTrack-v16-source.zip --out /tmp/FitTrack-v16-fixed.zip >/tmp/zipfix.log 2>&1 || true
+            cat /tmp/zipfix.log
+            cp /tmp/FitTrack-v16-fixed.zip /tmp/FitTrack-v16-source.zip
+          fi
+          unzip -q -o /tmp/FitTrack-v16-source.zip -d fittrack-src
           test -f fittrack-src/settings.gradle.kts
           test -f fittrack-src/app/src/main/java/com/lightme/fittrack/MainActivity.kt
 
