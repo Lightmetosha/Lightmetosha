@@ -1,0 +1,77 @@
+name: FitTrack v17 APK Build
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fittrack-v17-apk.yml
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout v16 build payload
+        uses: actions/checkout@v4
+        with:
+          ref: fittrack-apk-build
+          fetch-depth: 0
+
+      - name: Reconstruct v16 source
+        shell: bash
+        run: |
+          cat fittrack-v16/chunk_* | base64 -d > /tmp/FitTrack-v16-source.zip
+          mkdir -p fittrack-src
+          unzip -q /tmp/FitTrack-v16-source.zip -d fittrack-src
+          test -f fittrack-src/settings.gradle.kts
+          test -f fittrack-src/app/src/main/java/com/lightme/fittrack/MainActivity.kt
+
+      - name: Fetch v17 patches
+        shell: bash
+        run: |
+          git fetch origin fittrack-v17-build:refs/remotes/origin/fittrack-v17-build
+          git show origin/fittrack-v17-build:fittrack-v17/patch_health.b64 | base64 -d | gzip -d > fittrack-src/app/src/main/java/com/lightme/fittrack/HealthStepsManager.kt
+          git show origin/fittrack-v17-build:fittrack-v17/patch_main.b64 | base64 -d | gzip -d > /tmp/main.diff
+          git show origin/fittrack-v17-build:fittrack-v17/patch_gradle.b64 | base64 -d | gzip -d > /tmp/gradle.diff
+          git show origin/fittrack-v17-build:fittrack-v17/patch_manifest.b64 | base64 -d | gzip -d > /tmp/manifest.diff
+          git show origin/fittrack-v17-build:fittrack-v17/patch_readme.b64 | base64 -d | gzip -d > fittrack-src/README-v17.md
+          (cd fittrack-src && patch --batch -p4 < /tmp/main.diff)
+          (cd fittrack-src && patch --batch -p4 < /tmp/gradle.diff)
+          (cd fittrack-src && patch --batch -p4 < /tmp/manifest.diff)
+          rm -f fittrack-src/app/src/main/java/com/lightme/fittrack/HuaweiHealthManager.kt
+          rm -f fittrack-src/README-v16.md
+          grep -q 'versionCode = 17' fittrack-src/app/build.gradle.kts
+          grep -q 'nl.appyhapps.healthsync' fittrack-src/app/src/main/AndroidManifest.xml
+          grep -q 'HealthSourcesDialog' fittrack-src/app/src/main/java/com/lightme/fittrack/MainActivity.kt
+
+      - name: Install Android API 36
+        shell: bash
+        run: yes | sdkmanager "platforms;android-36" >/dev/null || true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Build APK
+        working-directory: fittrack-src
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Pack v17 source
+        shell: bash
+        run: |
+          cd fittrack-src
+          zip -qr ../FitTrack-v17-source.zip .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FitTrack-v17
+          path: |
+            fittrack-src/app/build/outputs/apk/debug/app-debug.apk
+            FitTrack-v17-source.zip
+          if-no-files-found: error
