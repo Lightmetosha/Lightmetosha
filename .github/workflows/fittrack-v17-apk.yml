@@ -15,6 +15,21 @@ jobs:
           ref: fittrack-apk-build
           fetch-depth: 0
 
+      - name: Record workflow run id
+        shell: bash
+        run: |
+          git fetch origin fittrack-v17-build:refs/remotes/origin/fittrack-v17-build
+          git worktree add /tmp/v17meta origin/fittrack-v17-build
+          cd /tmp/v17meta
+          echo "$GITHUB_RUN_ID" > fittrack-v17/run-id.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fittrack-v17/run-id.txt
+          git commit -m "Record FitTrack v17 build run" || true
+          git push origin HEAD:fittrack-v17-build
+          cd "$GITHUB_WORKSPACE"
+          git worktree remove /tmp/v17meta --force
+
       - name: Reconstruct v16 source
         shell: bash
         run: |
