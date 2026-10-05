@@ -1,0 +1,127 @@
+@@FILE README-v10.md
+# FitTrack v10
+
+## Тренировки
+- выбираемый таймер отдыха: 30 / 60 / 90 / 120 / 180 / 300 секунд;
+- произвольный интервал 5–1800 секунд;
+- выбранный интервал сохраняется в SharedPreferences и остаётся после перезапуска;
+- +30 секунд и остановка активного таймера;
+- RIR для каждого подхода;
+- расчётный e1RM по формуле Эпли;
+- объём по упражнению и всей тренировке;
+- предыдущий результат и исторический e1RM рядом с упражнением.
+
+Все функции v9 сохранены.
+@@END
+@@FILE README-v11.md
+# FitTrack v11
+
+## Шаги / Health Connect
+- чтение шагов через Android Health Connect;
+- только READ_STEPS — FitTrack не записывает и не изменяет шаги;
+- подходит для данных телефона и совместимых приложений/часов, синхронизирующихся с Health Connect;
+- шаги за сегодня;
+- настраиваемая цель, которая запоминается;
+- прогресс дневной цели;
+- среднее за 7 дней;
+- мини-график последних 7 дней;
+- ручное обновление;
+- экран обоснования доступа к данным Health Connect;
+- обработка отсутствующего/устаревшего Health Connect.
+
+Samsung Galaxy Watch может передавать шаги через Samsung Health -> Health Connect, если синхронизация разрешена.
+@@END
+@@FILE README-v12.md
+# FitTrack v12
+
+Health Connect: шаги, расстояние, активные калории, средний/максимальный пульс и сон. На главной: цель шагов, среднее и график за 7 дней, карточки активности и восстановления. Все разрешения только на чтение.
+
+Сохранены вес, недельный тренд, замеры, питание с Open Food Facts/USDA и сканером, прогресс-фото, тренировки, RIR/e1RM и запоминаемый таймер отдыха.
+@@END
+@@FILE README-v14.md
+# FitTrack v14
+
+Исправления UX и питания:
+- вход и регистрация: только email + пароль;
+- URL сервера полностью убран из пользовательского интерфейса;
+- профиль открывается в отдельном диалоге с рабочим крестиком закрытия;
+- при недоступном облаке регистрация создаёт локальный профиль вместо тупиковой ошибки;
+- переносимая ZIP-резервная копия остаётся доступна всегда и может быть сохранена в Google Drive/OneDrive через системный выбор файла;
+- поиск еды больше не зависит от FitTrack Server;
+- мгновенная локальная база обычных продуктов и блюд, включая хинкали;
+- Open Food Facts и USDA дополняют результаты;
+- FatSecret подключается автоматически только если облачный сервис доступен;
+- недоступный FatSecret больше не блокирует весь поиск;
+- Enter/Search на клавиатуре запускает поиск;
+- настройки питания больше не содержат URL сервера.
+@@END
+@@FILE README-v17.md
+# FitTrack v17
+
+## Huawei Watch without Huawei Developer
+
+FitTrack no longer uses direct Huawei Health Kit and does not require a Huawei App ID or legal entity.
+
+Flow:
+
+Huawei Watch -> Huawei Health -> Health Sync -> Health Connect -> FitTrack
+
+FitTrack reads final Health Connect aggregates for steps, distance, active calories, heart rate and sleep. It also reads raw metadata for the last 7 days to show which applications/devices supplied data. Health Sync is recognized by package `nl.appyhapps.healthsync`.
+
+The app includes an Sources screen with setup status, detected Health Connect sources, quick links to Health Sync / Huawei Health / Health Connect, and a refresh action.
+
+Direct Huawei HMS dependencies were removed.
+
+Professional workout UI from v16 is retained.
+@@END
+@@FILE README-v9.md
+# FitTrack v9
+
+Новый режим тренировок:
+- шаблоны Верх / Низ / Full Body;
+- активная тренировка;
+- несколько подходов на упражнение;
+- прошлый результат и PR;
+- отметка выполненных подходов;
+- 90-секундный таймер отдыха;
+- общий объём тренировки;
+- сохранение только завершённых подходов;
+- история тренировок и лучшие результаты.
+
+Остальные функции v8 сохранены: вес, недельные средние, замеры, питание, Open Food Facts + USDA, сканер штрихкодов, фотографии прогресса и сравнение.
+@@END
+@@FILE README.md
+# FitTrack v5
+
+Android fitness/nutrition tracker (Kotlin + Jetpack Compose).
+
+## Food catalog
+- Open Food Facts: branded products and barcode lookup, no key required.
+- USDA FoodData Central: general + branded foods. `DEMO_KEY` works for testing; add your own data.gov API key in **Ещё → База продуктов → Настроить USDA** for normal limits.
+- Local history, favorites and manual foods remain available.
+
+## Build
+Open the project in current Android Studio, install Android SDK 35 if prompted, then Build → Build APK(s).
+This archive does not contain a Gradle wrapper binary because the build environment used to prepare it has no Android SDK/Gradle distribution and cannot download build tooling.
+@@END
+@@FILE app/build.gradle.kts
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+}
+
+android {
+    namespace = "com.lightme.fittrack"
+    compileSdk = 36
+    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+
+    defaultConfig {
+        applicationId = "com.lightme.fittrack"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 17
+        versionName = "17.0.0"
+    }
+
+    buildFeatures { compose = true
