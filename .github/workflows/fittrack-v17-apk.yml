@@ -40,6 +40,15 @@ jobs:
           test -f fittrack-src/settings.gradle.kts
           test -f fittrack-src/app/build.gradle.kts
 
+      - name: Apply v17 compile fixes
+        shell: bash
+        run: |
+          cat fittrack-v17-fixes/main_*.b64 | base64 -d | gzip -d > fittrack-src/app/src/main/java/com/lightme/fittrack/MainActivity.kt
+          cat fittrack-v17-fixes/sources_*.b64 | base64 -d | gzip -d > fittrack-src/app/src/main/java/com/lightme/fittrack/HealthSourcesUi.kt
+          cat fittrack-v17-fixes/workout_*.b64 | base64 -d | gzip -d > fittrack-src/app/src/main/java/com/lightme/fittrack/ProfessionalWorkoutUi.kt
+          grep -q 'HealthSourcesDialog' fittrack-src/app/src/main/java/com/lightme/fittrack/MainActivity.kt
+          grep -q 'Health Sync' fittrack-src/app/src/main/java/com/lightme/fittrack/HealthSourcesUi.kt
+
       - name: Install Android API 36
         shell: bash
         run: yes | sdkmanager "platforms;android-36" >/dev/null || true
