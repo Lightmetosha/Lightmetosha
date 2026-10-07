@@ -14,14 +14,14 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          mkdir -p out/windows out/linux
+          mkdir -p out/windows out/linux /tmp/win /tmp/linux
           curl -L --fail --retry 3 -o /tmp/tg-win.tar.gz https://github.com/gotd/cli/releases/download/v0.11.0/tg_0.11.0_windows_amd64.tar.gz
           curl -L --fail --retry 3 -o /tmp/tg-linux.tar.gz https://github.com/gotd/cli/releases/download/v0.11.0/tg_0.11.0_linux_amd64.tar.gz
           tar -xzf /tmp/tg-win.tar.gz -C /tmp/win
           tar -xzf /tmp/tg-linux.tar.gz -C /tmp/linux
-          find /tmp/win -maxdepth 2 -type f -print
-          find /tmp/linux -maxdepth 2 -type f -print
-          WIN_BIN="$(find /tmp/win -type f \( -name 'tg.exe' -o -name 'tg' \) | head -1)"
+          find /tmp/win -maxdepth 3 -type f -print
+          find /tmp/linux -maxdepth 3 -type f -print
+          WIN_BIN="$(find /tmp/win -type f -name 'tg.exe' | head -1)"
           LIN_BIN="$(find /tmp/linux -type f -name 'tg' | head -1)"
           test -n "$WIN_BIN"
           test -n "$LIN_BIN"
